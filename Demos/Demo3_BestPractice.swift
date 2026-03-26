@@ -97,20 +97,6 @@ struct SideBySideDemo: View {
             .background(.background.secondary)
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            // Stress test
-            Button {
-                runStress()
-            } label: {
-                Label(
-                    isRunning ? "Running…" : "Stress Test: 50 unrelated changes",
-                    systemImage: isRunning ? "bolt.fill" : "bolt"
-                )
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.purple)
-            .disabled(isRunning)
-
             // Side by side children
             HStack(spacing: 12) {
                 SideBySideChild(
@@ -126,8 +112,6 @@ struct SideBySideDemo: View {
                     evalCount: goodCounter.count,
                     onAction: { _ = goodCounter.tick() }
                 )
-                // Note: in a real app the Action struct would gate re-evals automatically.
-                // Here we simulate by only ticking goodCounter when sharedCount changes.
             }
             .onChange(of: unrelated) {
                 // Bad: re-evals on unrelated change
@@ -138,30 +122,6 @@ struct SideBySideDemo: View {
                 let _ = badCounter.tick()
                 let _ = goodCounter.tick()
             }
-
-            HStack {
-                Label("After stress test:", systemImage: "info.circle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text("Bad: \(badCounter.count)×")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.red)
-                Text("Good: \(goodCounter.count)×")
-                    .font(.caption.monospacedDigit().weight(.semibold))
-                    .foregroundStyle(.green)
-            }
-        }
-    }
-
-    private func runStress() {
-        isRunning = true
-        Task {
-            for _ in 0..<50 {
-                try? await Task.sleep(for: .milliseconds(40))
-                unrelated += 1
-            }
-            isRunning = false
         }
     }
 }

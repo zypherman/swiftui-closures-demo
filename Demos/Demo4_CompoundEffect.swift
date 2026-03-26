@@ -1,66 +1,5 @@
 import SwiftUI
 
-// MARK: - String Constants
-
-private enum Demo4Strings {
-
-    static let problemInsight =
-        "In real feature modules, a parent owns many independent pieces of " +
-        "state. Every state change re-renders the parent, which passes a new " +
-        "`() -> Void` closure to each child. Because closures are not " +
-        "`Equatable`, SwiftUI cannot diff them — so **every child re-evaluates " +
-        "on every parent re-render**, even when none of the child's actual " +
-        "dependencies changed. With 8 state fields and 50 rapid updates, " +
-        "the wasted evaluation count compounds quickly."
-
-    static let problemCode = """
-// Parent with 8 independent state fields
-struct FeatureParent: View {
-    @State var messages = 0      @State var score = 0
-    @State var notifications = 0 @State var volume = 0.5
-    @State var filterText = ""   @State var tab = 0
-    @State var isSyncing = false @State var userName = "…"
-
-    var body: some View {
-        ChildView(action: { print(primaryValue) })
-        //                   ^^^ new closure each render
-        //        () -> Void not Equatable → child always re-evals
-    }
-}
-"""
-
-    static let solutionInsight =
-        "Replace `() -> Void` with `Action(stableWhile:)`. SwiftUI compares " +
-        "child view structs before deciding to call `body`. Because `Action` " +
-        "is `Equatable` via its `stableWhile` dependency, SwiftUI can detect " +
-        "that the child's input is **unchanged** and skip evaluation entirely. " +
-        "After 50 unrelated state changes, the child stays at 1 evaluation."
-
-    static let solutionCode = """
-// Same parent — same 8 state fields
-struct FeatureParent: View {
-    // ...
-    @State var primaryValue = 0   // child's only real dependency
-
-    var body: some View {
-        ChildView(
-            action: Action(stableWhile: primaryValue) { [primaryValue] in
-                print(primaryValue)  // explicit capture = clear dependency
-            }
-        )
-        // Action.== compares stableWhile only
-        // Unchanged → SwiftUI skips ChildView.body entirely
-    }
-}
-"""
-
-    static let goodTip =
-        "After the stress test: Parent.body shows ~52 evaluations. " +
-        "GoodCompoundChild.body shows 1. " +
-        "Use the Stepper to update `primaryValue` — now the child " +
-        "re-evaluates because its actual dependency changed."
-}
-
 // MARK: - Demo 4 Root View
 
 struct Demo4_CompoundEffect: View {
@@ -374,4 +313,65 @@ extension GoodCompoundChild: @preconcurrency Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.action == rhs.action
     }
+}
+
+// MARK: - String Constants
+
+private enum Demo4Strings {
+
+    static let problemInsight =
+        "In real feature modules, a parent owns many independent pieces of " +
+        "state. Every state change re-renders the parent, which passes a new " +
+        "`() -> Void` closure to each child. Because closures are not " +
+        "`Equatable`, SwiftUI cannot diff them — so **every child re-evaluates " +
+        "on every parent re-render**, even when none of the child's actual " +
+        "dependencies changed. With 8 state fields and 50 rapid updates, " +
+        "the wasted evaluation count compounds quickly."
+
+    static let problemCode = """
+// Parent with 8 independent state fields
+struct FeatureParent: View {
+    @State var messages = 0      @State var score = 0
+    @State var notifications = 0 @State var volume = 0.5
+    @State var filterText = ""   @State var tab = 0
+    @State var isSyncing = false @State var userName = "…"
+
+    var body: some View {
+        ChildView(action: { print(primaryValue) })
+        //                   ^^^ new closure each render
+        //        () -> Void not Equatable → child always re-evals
+    }
+}
+"""
+
+    static let solutionInsight =
+        "Replace `() -> Void` with `Action(stableWhile:)`. SwiftUI compares " +
+        "child view structs before deciding to call `body`. Because `Action` " +
+        "is `Equatable` via its `stableWhile` dependency, SwiftUI can detect " +
+        "that the child's input is **unchanged** and skip evaluation entirely. " +
+        "After 50 unrelated state changes, the child stays at 1 evaluation."
+
+    static let solutionCode = """
+// Same parent — same 8 state fields
+struct FeatureParent: View {
+    // ...
+    @State var primaryValue = 0   // child's only real dependency
+
+    var body: some View {
+        ChildView(
+            action: Action(stableWhile: primaryValue) { [primaryValue] in
+                print(primaryValue)  // explicit capture = clear dependency
+            }
+        )
+        // Action.== compares stableWhile only
+        // Unchanged → SwiftUI skips ChildView.body entirely
+    }
+}
+"""
+
+    static let goodTip =
+        "After the stress test: Parent.body shows ~52 evaluations. " +
+        "GoodCompoundChild.body shows 1. " +
+        "Use the Stepper to update `primaryValue` — now the child " +
+        "re-evaluates because its actual dependency changed."
 }

@@ -18,7 +18,6 @@ struct Demo2_ViewPropertyClosure: View {
 
                 case .solution:
                     InsightBox(kind: .solution, text: Demo2Strings.solutionInsight)
-                    MonoCodeView(code: Demo2Strings.solutionCode)
                     GoodPropertyClosureDemo()
                 }
             }
@@ -76,22 +75,8 @@ struct BadPropertyClosureDemo: View {
                         TextField("Type anything…", text: $searchText)
                             .textFieldStyle(.roundedBorder)
                     }
-                    StressTestButton(isRunning: isStressRunning, changeCount: 0) {
-                        runStressTest()
-                    }
                 }
             }
-        }
-    }
-
-    private func runStressTest() {
-        isStressRunning = true
-        Task {
-            for i in 0..<50 {
-                try? await Task.sleep(for: .milliseconds(40))
-                searchText = "search \(i)"
-            }
-            isStressRunning = false
         }
     }
 }
@@ -106,6 +91,10 @@ struct GoodPropertyClosureDemo: View {
     @State private var isStressRunning = false
     @State private var parentCounter = EvalCounter(view: "Parent", scenario: "Demo2-Good")
 
+    // State mutated by MutatingActionChild — owned here on the parent
+    @State private var submitCount = 0
+    @State private var lastSubmittedDraft = -1
+
     var body: some View {
         let pEvals = parentCounter.tick()
 
@@ -113,8 +102,8 @@ struct GoodPropertyClosureDemo: View {
             DemoCard(title: "Parent View", accent: .green) {
                 VStack(spacing: 12) {
                     EvalBadge(label: "Parent.body", count: pEvals)
+                    Text("Submit Count: \(submitCount)")
 
-                    // .equatable() + Action.== gates each body call
                     GoodFeatureChild(
                         childName: "ProfileCard",
                         dependsOn: "userId",
@@ -122,7 +111,6 @@ struct GoodPropertyClosureDemo: View {
                             print("Submit userId=\(userId)")
                         }
                     )
-                    .equatable()
 
                     GoodFeatureChild(
                         childName: "MessageList",
@@ -131,7 +119,6 @@ struct GoodPropertyClosureDemo: View {
                             print("Send draftVersion=\(draftVersion)")
                         }
                     )
-                    .equatable()
 
                     GoodFeatureChild(
                         childName: "SettingsRow",
@@ -140,7 +127,49 @@ struct GoodPropertyClosureDemo: View {
                             print("Toggle notificationsOn=\(notificationsOn)")
                         }
                     )
-                    .equatable()
+                }
+            }
+
+            DemoCard(title: "State-Mutating Action", accent: .blue) {
+                VStack(spacing: 12) {
+                    Text("The child below uses captures self so it can update values on the parent view")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    // Live parent state — updated by the child's closure
+                    HStack(spacing: 0) {
+                        VStack(spacing: 2) {
+                            Text("Submit count")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text("\(submitCount)")
+                                .font(.title.bold().monospacedDigit())
+                                .foregroundStyle(.blue)
+                                .contentTransition(.numericText())
+                        }
+                        .frame(maxWidth: .infinity)
+
+                        Divider().frame(height: 44)
+
+                        VStack(spacing: 2) {
+                            Text("Last submitted draft")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text(lastSubmittedDraft == -1 ? "—" : "v\(lastSubmittedDraft)")
+                                .font(.title.bold().monospacedDigit())
+                                .foregroundStyle(.blue)
+                                .contentTransition(.numericText())
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.vertical, 4)
+
+                    MutatingActionChild(
+                        action: Action(stableWhile: draftVersion) {
+                            submitCount += 1
+                            lastSubmittedDraft = draftVersion
+                        }
+                    )
                 }
             }
 
@@ -153,16 +182,13 @@ struct GoodPropertyClosureDemo: View {
                         TextField("Type anything…", text: $searchText)
                             .textFieldStyle(.roundedBorder)
                     }
-                    StressTestButton(isRunning: isStressRunning, changeCount: 0) {
-                        runStressTest()
-                    }
                 }
             }
 
-            DemoCard(title: "Change a Child's Actual Dependency", accent: .blue) {
+            DemoCard(title: "Trigger Change Child Views Actual Dependency", accent: .blue) {
                 VStack(spacing: 8) {
                     HStack {
-                        Text("userId:")
+                        Text("ProfileCard userId:")
                             .foregroundStyle(.secondary)
                             .frame(width: 130, alignment: .leading)
                         Text("\(userId)")
@@ -172,7 +198,7 @@ struct GoodPropertyClosureDemo: View {
                             .labelsHidden()
                     }
                     HStack {
-                        Text("draftVersion:")
+                        Text("MessageList draftVersion:")
                             .foregroundStyle(.secondary)
                             .frame(width: 130, alignment: .leading)
                         Text("\(draftVersion)")
@@ -182,7 +208,7 @@ struct GoodPropertyClosureDemo: View {
                             .labelsHidden()
                     }
                     HStack {
-                        Text("notificationsOn:")
+                        Text("SettingsRow: notificationsOn:")
                             .foregroundStyle(.secondary)
                             .frame(width: 130, alignment: .leading)
                         Spacer()
@@ -191,19 +217,6 @@ struct GoodPropertyClosureDemo: View {
                     }
                 }
             }
-
-            InsightBox(kind: .tip, text: Demo2Strings.goodTip)
-        }
-    }
-
-    private func runStressTest() {
-        isStressRunning = true
-        Task {
-            for i in 0..<50 {
-                try? await Task.sleep(for: .milliseconds(40))
-                searchText = "search \(i)"
-            }
-            isStressRunning = false
         }
     }
 }
@@ -296,12 +309,45 @@ struct GoodFeatureChild: View {
     }
 }
 
-// @preconcurrency suppresses Swift 6 cross-actor-isolation error:
-// SwiftUI always calls == on the main actor (via EquatableView), so no real data race.
+// MARK: - MutatingActionChild
+
+struct MutatingActionChild: View {
+    let action: Action
+    @State private var counter = EvalCounter(view: "MutatingChild", scenario: "Demo2-Good")
+
+    var body: some View {
+        let evals = counter.tick()
+        let _ = Self._printChanges()
+
+        DemoCard(title: "MutatingActionChild", accent: .blue) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    EvalBadge(label: "body", count: evals)
+                    Spacer()
+                    Button("Submit Draft") { action() }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .tint(.blue)
+                }
+                Text("Stable — body skipped unless draftVersion changes. Parent counters above update on every tap.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
 extension GoodFeatureChild: @preconcurrency Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.childName == rhs.childName &&
         lhs.dependsOn == rhs.dependsOn &&
+        lhs.action == rhs.action
+        // @State counter intentionally excluded — SwiftUI manages it separately
+    }
+}
+
+extension MutatingActionChild: @preconcurrency Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.action == rhs.action
         // @State counter intentionally excluded — SwiftUI manages it separately
     }
@@ -335,25 +381,22 @@ SettingsRow(action: { toggle(self.notificationsOn) })
     static let solutionInsight =
         "Replace `() -> Void` with `Action(stableWhile:)`. " +
         "`Action` conforms to `Equatable` via its `stableWhile` dependency key. " +
-        "Pairing this with `.equatable()` tells SwiftUI: " +
-        "**use `==` to gate this view's `body` call**. " +
-        "When `stableWhile` hasn't changed, `Action.==` returns `true`, " +
-        "SwiftUI skips the child's `body` entirely — " +
+        "SwiftUI skips the child's `body` entirely when it sees that Action didn't change — " +
         "zero wasted work, zero re-evaluations."
 
     static let solutionCode = """
 // Action declares its exact dependency
 ProfileCard(
-    action: Action(stableWhile: userId) { [userId] in submit(userId) }
-).equatable()  // <- gates body on Action.== result
+    action: Action(stableWhile: userId) { submit(userId) }
+)
 
 MessageList(
     action: Action(stableWhile: draftVersion) { ... }
-).equatable()
+)
 
 SettingsRow(
     action: Action(stableWhile: notificationsOn) { ... }
-).equatable()
+)
 
 // Unrelated keystroke → stableWhile unchanged for all 3
 //   → Action.== returns true → SwiftUI skips ALL 3 body calls
