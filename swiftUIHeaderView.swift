@@ -204,3 +204,92 @@ public var body: some View {
         .background(Color.Rebrand.Canvas.primary)
         .foregroundStyle(Color.Rebrand.Text.primary)
 }
+
+//
+//  VariantBHeaderView.swift
+//  Booking
+//
+
+import CommonUI
+import SwiftUI
+import CommonUtils
+import LocalizeMacro
+
+/// Fixed header variant B with hotel name and "Hotel Details" button at top-left
+struct VariantBHeaderView: View {
+    /// URL for the hero image
+    let imageURL: URL?
+
+    /// Hotel name to display
+    let hotelName: String
+
+    /// Action to perform when back button is tapped
+    let onBack: () -> Void
+
+    /// When true, renders an X (close) icon instead of a back chevron
+    var isCloseButton: Bool = false
+
+    /// Action to perform when hotel details is tapped
+    let onHotelDetails: () -> Void
+
+    /// Safe area top inset (passed in since parent ignores safe area)
+    var safeAreaTop: CGFloat = 0
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                // Hero image background
+                RemoteImage(url: imageURL)
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+
+                // Gradient scrim for text readability (darker at top where text is)
+                LinearGradient(
+                    gradient: Gradient(stops: [
+                        .init(color: .black.opacity(0.70), location: 0.00),
+                        .init(color: .black.opacity(0.50), location: 0.30),
+                        .init(color: .black.opacity(0.10), location: 0.55),
+                        .init(color: .clear, location: 1.0)
+                    ]),
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                // Content overlay
+                VStack(spacing: 0) {
+                    // Top bar: Back button + Hotel name/details
+                    HStack(alignment: .top, spacing: 12) {
+                        FixedHeaderBackButton(action: onBack, isCloseButton: isCloseButton)
+
+                        // Hotel name + Hotel Details button
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(hotelName)
+                                .hyattFont(.standard(.body1(emphasized: true)))
+                                .foregroundStyle(Color.Rebrand.Text.inverse)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Button(action: onHotelDetails) {
+                                HStack(spacing: 3) {
+                                    Text(BookingRoomsAndRatesView.ViewStrings.hotelDetails)
+                                        .hyattFont(.standard(.caption1(emphasized: true)))
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                }
+                                .foregroundStyle(Color.Rebrand.Text.inverse)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, safeAreaTop + 8)
+
+                    Spacer()
+                }
+            }
+        }
+    }
+}
