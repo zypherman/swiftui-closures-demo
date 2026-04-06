@@ -293,3 +293,66 @@ struct VariantBHeaderView: View {
         }
     }
 }
+
+private var variantBLayout: some View {
+        GeometryReader { geometry in
+            let safeAreaTop = geometry.safeAreaInsets.top
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    VariantBHeaderView(
+                        imageURL: viewModel.propertyDetail.mobileImageURL,
+                        hotelName: viewModel.propertyDetail.name ?? "",
+                        onBack: backAction,
+                        isCloseButton: isCartCloseMode,
+                        onHotelDetails: {
+                            viewModel.trackHotelDetailsButtonTapped()
+                            handleHotelDetailsTap()
+                        },
+                        safeAreaTop: safeAreaTop
+                    )
+                    .frame(height: 100 + safeAreaTop)
+                    .onGeometryChange(for: CGFloat.self) { geo in
+                        geo.frame(in: .global).maxY
+                    } action: { newValue in
+                        headerBottomY = newValue
+                    }
+
+                    Messages()
+                        .padding(.top, -32)
+                        .accessibilityIdentifierBranch("HotelMessages")
+                        .onGeometryChange(for: CGRect.self) { geo in
+                            geo.frame(in: .global)
+                        } action: { rect in
+                            overlayBottomY = rect.maxY
+                            if rect.height > 0 {
+                                hasOverlay = true
+                            }
+                        }
+
+                    roomsAndRatesContent(includePointsCalendar: true)
+                }
+            }
+            .overlay(alignment: .top) {
+                CompactVariantBHeaderBar(
+                    hotelName: viewModel.propertyDetail.name ?? "",
+                    onBack: backAction,
+                    onHotelDetails: {
+                        viewModel.trackHotelDetailsButtonTapped()
+                        handleHotelDetailsTap()
+                    },
+                    safeAreaTop: safeAreaTop,
+                    isCloseButton: isCartCloseMode
+                )
+                .onGeometryChange(for: CGFloat.self) { geo in
+                    geo.size.height
+                } action: { newValue in
+                    compactHeaderHeight = newValue
+                }
+                .opacity(showCompactHeader ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: showCompactHeader)
+                .allowsHitTesting(showCompactHeader)
+            }
+            .ignoresSafeArea(.container, edges: .top)
+        }
+    }
