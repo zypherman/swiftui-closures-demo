@@ -37,6 +37,14 @@ struct ContentView: View {
                             accent: .purple
                         )
                     }
+                    NavigationLink(destination: ConditionalDemoLanding()) {
+                        DemoRow(
+                            number: "05",
+                            title: "Conditional View Modifiers",
+                            subtitle: "if/else vs custom .if() vs inert modifiers — 42-row catalog",
+                            accent: .indigo
+                        )
+                    }
                 } header: {
                     Text("Demos")
                 } footer: {}

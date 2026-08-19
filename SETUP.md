@@ -67,3 +67,17 @@ ClosuresDemoTests/
 
 The bad child shows 50+ events for 50 state changes.
 The good child shows 1–2 events for the same 50 changes.
+
+## Demo 5: Conditional View Modifiers (separate topic, same project)
+
+Row "05" in the app's list opens a second, self-contained demo about
+`if`/`else` vs. the custom `.if()` modifier vs. inert modifiers — see
+`ConditionalPerf_SpeakerNotes.md` and `ConditionalPerf_CodeSnippets.md` at
+the repo root for the full script and code reference. Source lives under
+`ConditionalPerf/`, with its own performance tests in
+`ClosuresDemoTests/ConditionalModifierPerformanceTests.swift`. Same build/run
+steps above apply — no separate setup needed.
+
+For Instruments on this demo specifically, filter Points of Interest by
+subsystem `com.ClosuresDemo.ConditionalPerf` and category
+`ConditionalPerf-IfElse` / `-CustomIf` / `-Inert`.

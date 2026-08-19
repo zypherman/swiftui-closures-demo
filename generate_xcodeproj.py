@@ -7,6 +7,7 @@ Run from: /Users/zypherman/Developer/ClosuresDemo/
 """
 
 import os
+import re
 import uuid
 
 # ── UUID factory ──────────────────────────────────────────────────────────────
@@ -23,6 +24,8 @@ IDS = {
     "shared_group":         "8A1B2C3D4E5F6A7B8C9D0E22",
     "demos_group":          "8A1B2C3D4E5F6A7B8C9D0E23",
     "tests_group":          "8A1B2C3D4E5F6A7B8C9D0E24",
+    "conditionalperf_group":      "8A1B2C3D4E5F6A7B8C9D0E25",
+    "conditionalperf_rows_group": "8A1B2C3D4E5F6A7B8C9D0E26",
 
     # App target
     "app_target":           "AA000000000000000000001",
@@ -55,25 +58,51 @@ IDS = {
 }
 
 # ── Source files ─────────────────────────────────────────────────────────────
-APP_FILES = [
-    # (display_name, relative_path, uuid_ref, uuid_build)
-    ("ClosuresDemoApp.swift",          "ClosuresDemoApp.swift",                    "F0000000000000000000001", "F1000000000000000000001"),
-    ("ContentView.swift",              "ContentView.swift",                        "F0000000000000000000002", "F1000000000000000000002"),
-    ("EvalCounter.swift",              "Shared/EvalCounter.swift",                 "F0000000000000000000003", "F1000000000000000000003"),
-    ("Handler.swift",                  "Shared/Handler.swift",                     "F0000000000000000000004", "F1000000000000000000004"),
-    ("DemoComponents.swift",           "Shared/DemoComponents.swift",              "F0000000000000000000005", "F1000000000000000000005"),
-    ("Demo1_EnvironmentClosure.swift", "Demos/Demo1_EnvironmentClosure.swift",     "F0000000000000000000006", "F1000000000000000000006"),
-    ("Demo2_ViewPropertyClosure.swift","Demos/Demo2_ViewPropertyClosure.swift",    "F0000000000000000000007", "F1000000000000000000007"),
-    ("Demo3_BestPractice.swift",       "Demos/Demo3_BestPractice.swift",           "F0000000000000000000008", "F1000000000000000000008"),
+# (display_name, relative_path, uuid_ref, uuid_build)
+
+ROOT_FILES = [
+    ("ClosuresDemoApp.swift", "ClosuresDemoApp.swift", "F0000000000000000000001", "F1000000000000000000001"),
+    ("ContentView.swift",     "ContentView.swift",     "F0000000000000000000002", "F1000000000000000000002"),
 ]
+
+SHARED_FILES = [
+    ("EvalCounter.swift",    "Shared/EvalCounter.swift",    "F0000000000000000000003", "F1000000000000000000003"),
+    ("Handler.swift",        "Shared/Handler.swift",        "F0000000000000000000004", "F1000000000000000000004"),
+    ("DemoComponents.swift", "Shared/DemoComponents.swift", "F0000000000000000000005", "F1000000000000000000005"),
+]
+
+DEMOS_FILES = [
+    ("Demo1_EnvironmentClosure.swift",  "Demos/Demo1_EnvironmentClosure.swift",  "F0000000000000000000006", "F1000000000000000000006"),
+    ("Demo2_ViewPropertyClosure.swift", "Demos/Demo2_ViewPropertyClosure.swift", "F0000000000000000000007", "F1000000000000000000007"),
+    ("Demo3_BestPractice.swift",        "Demos/Demo3_BestPractice.swift",        "F0000000000000000000008", "F1000000000000000000008"),
+    ("Demo4_CompoundEffect.swift",      "Demos/Demo4_CompoundEffect.swift",      "F0000000000000000000010", "F1000000000000000000010"),
+]
+
+# Demo 5: Conditional View Modifiers — if/else vs custom .if() vs inert modifiers
+CONDITIONALPERF_FILES = [
+    ("View+If.swift",              "ConditionalPerf/View+If.swift",              "F0000000000000000000011", "F1000000000000000000011"),
+    ("ConditionalDemoModels.swift","ConditionalPerf/ConditionalDemoModels.swift","F0000000000000000000012", "F1000000000000000000012"),
+    ("ConditionalListView.swift",  "ConditionalPerf/ConditionalListView.swift",  "F0000000000000000000013", "F1000000000000000000013"),
+    ("ConditionalDemoLanding.swift","ConditionalPerf/ConditionalDemoLanding.swift","F0000000000000000000014", "F1000000000000000000014"),
+]
+
+CONDITIONALPERF_ROWS_FILES = [
+    ("SharedRowPieces.swift",             "ConditionalPerf/Rows/SharedRowPieces.swift",             "F0000000000000000000015", "F1000000000000000000015"),
+    ("UnstableConditionalLeaves.swift",   "ConditionalPerf/Rows/UnstableConditionalLeaves.swift",   "F0000000000000000000016", "F1000000000000000000016"),
+    ("StableConditionalLeaves.swift",     "ConditionalPerf/Rows/StableConditionalLeaves.swift",     "F0000000000000000000017", "F1000000000000000000017"),
+    ("IfElseProductRow.swift",            "ConditionalPerf/Rows/IfElseProductRow.swift",            "F0000000000000000000018", "F1000000000000000000018"),
+    ("CustomIfModifierProductRow.swift",  "ConditionalPerf/Rows/CustomIfModifierProductRow.swift",  "F0000000000000000000019", "F1000000000000000000019"),
+    ("InertProductRow.swift",             "ConditionalPerf/Rows/InertProductRow.swift",             "F000000000000000000001A", "F100000000000000000001A"),
+]
+
+APP_FILES = (
+    ROOT_FILES + SHARED_FILES + DEMOS_FILES + CONDITIONALPERF_FILES + CONDITIONALPERF_ROWS_FILES
+)
 
 TEST_FILES = [
     ("ClosureBehaviorTests.swift", "ClosuresDemoTests/ClosureBehaviorTests.swift", "F0000000000000000000009", "F1000000000000000000009"),
+    ("ConditionalModifierPerformanceTests.swift", "ClosuresDemoTests/ConditionalModifierPerformanceTests.swift", "F000000000000000000001B", "F100000000000000000001B"),
 ]
-
-SHARED_FILES = APP_FILES[2:5]   # EvalCounter, Handler, DemoComponents (indices 2–4)
-DEMOS_FILES  = APP_FILES[5:]    # Demo1–3 (indices 5–7)
-ROOT_FILES   = APP_FILES[:2]    # App + ContentView (indices 0–1)
 
 
 def pbxproj():
@@ -96,7 +125,10 @@ def pbxproj():
     file_refs = []
     for name, path, ref_id, build_id in APP_FILES + TEST_FILES:
         ft = "sourcecode.swift"
-        file_refs.append(f'\t\t{ref_id} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = {ft}; path = {name}; sourceTree = "<group>"; }};')
+        # Quote path values containing characters outside the OpenStep-plist
+        # "bare word" safe set (alphanumerics, '.', '/', '_') — e.g. "View+If.swift".
+        quoted_name = f'"{name}"' if not re.match(r'^[A-Za-z0-9_./]+$', name) else name
+        file_refs.append(f'\t\t{ref_id} /* {name} */ = {{isa = PBXFileReference; lastKnownFileType = {ft}; path = {quoted_name}; sourceTree = "<group>"; }};')
 
     file_refs.append(f'\t\t{IDS["app_product"]} /* ClosuresDemo.app */ = {{isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ClosuresDemo.app; sourceTree = BUILT_PRODUCTS_DIR; }};')
     file_refs.append(f'\t\t{IDS["test_product"]} /* ClosuresDemoTests.xctest */ = {{isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ClosuresDemoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; }};')
@@ -133,6 +165,7 @@ def pbxproj():
 \t\t\tchildren = (
 \t\t\t\t{IDS['shared_group']} /* Shared */,
 \t\t\t\t{IDS['demos_group']} /* Demos */,
+\t\t\t\t{IDS['conditionalperf_group']} /* ConditionalPerf */,
 \t\t\t\t{ROOT_FILES[0][2]} /* {ROOT_FILES[0][0]} */,
 \t\t\t\t{ROOT_FILES[1][2]} /* {ROOT_FILES[1][0]} */,
 \t\t\t\t{IDS['tests_group']} /* ClosuresDemoTests */,
@@ -174,6 +207,31 @@ def pbxproj():
 {demos_children}
 \t\t\t);
 \t\t\tpath = Demos;
+\t\t\tsourceTree = "<group>";
+\t\t}};""")
+
+    # ConditionalPerf group
+    conditionalperf_children = "\n".join(f"\t\t\t\t{f[2]} /* {f[0]} */," for f in CONDITIONALPERF_FILES)
+    groups.append(f"""
+\t\t{IDS['conditionalperf_group']} /* ConditionalPerf */ = {{
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+{conditionalperf_children}
+\t\t\t\t{IDS['conditionalperf_rows_group']} /* Rows */,
+\t\t\t);
+\t\t\tpath = ConditionalPerf;
+\t\t\tsourceTree = "<group>";
+\t\t}};""")
+
+    # ConditionalPerf/Rows group
+    conditionalperf_rows_children = "\n".join(f"\t\t\t\t{f[2]} /* {f[0]} */," for f in CONDITIONALPERF_ROWS_FILES)
+    groups.append(f"""
+\t\t{IDS['conditionalperf_rows_group']} /* Rows */ = {{
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+{conditionalperf_rows_children}
+\t\t\t);
+\t\t\tpath = Rows;
 \t\t\tsourceTree = "<group>";
 \t\t}};""")
 
